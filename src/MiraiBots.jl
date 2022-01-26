@@ -2,6 +2,11 @@ module MiraiBots
 
 using HTTP, JSON3, StructTypes
 
+const Optional{T} = Union{T,Nothing}
+
+include("MessageChains.jl")
+include("EventsAndMessages.jl")
+include("Commands.jl")
 
 """
     ProtocolAdapter
@@ -22,38 +27,34 @@ receive(adp::ProtocolAdapter) = take!(get_output_channel(adp))
 const sync_id_counter = Ref(0)
 get_sync_id() = string(sync_id_counter[] += 1)
 
-@enum CommandMethod begin
-    GET
-    POST
-    UPLOAD
-end
 
-struct Command
+"A command object suitable for both adapters."
+struct GeneralCommand
     command::Symbol
-    subCommand::Union{Nothing,Symbol}
+    subCommand::Optional{Symbol}
     content::Any
     method::CommandMethod
+    response_type::Type
+end
+
+function make_command(cmd::AbstractCommand)
+    GeneralCommand(command(cmd), subcommand(cmd), cmd, method(cmd), response_type(cmd))
 end
 
 struct WebSocketCommand
     syncId::String
     command::Symbol
-    subCommand::Union{Nothing,Symbol}
+    subCommand::Optional{Symbol}
     content::Any
 end
 
-Command(cmd, content, method) = Command(cmd, nothing, content, method)
-WebSocketCommand(cmd::Command) = WebSocketCommand(get_sync_id(), cmd.command, cmd.subCommand, cmd.content)
-# WebSocketCommand(cmd::Command) = WebSocketCommand(get_sync_id(), cmd)
-
-# Base.propertynames(cmd::WebSocketCommand) = (:syncId, propertynames(cmd.cmd))
-# Base.getproperty(cmd::WebSocketCommand, f::Symbol) = hasfield(typeof(cmd), f) ? getfield(cmd, f) : getfield(cmd.cmd, f)
+WebSocketCommand(syncId, cmd::GeneralCommand) = WebSocketCommand(syncId, cmd.command, cmd.subCommand, cmd.content)
 
 StructTypes.StructType(::Type{WebSocketCommand}) = StructTypes.Struct()
 StructTypes.omitempties(::Type{WebSocketCommand}) = (:subCommand, :content)
 
 
-const OutputChannel = Channel{JSON3.Object}
+const OutputChannel = Channel{Union{JSON3.Object, EventOrMessage}}
 const DEFAULT_BUFFER_SIZE = 16
 
 mutable struct WebSocketAdapter <: ProtocolAdapter
@@ -72,17 +73,21 @@ function loop(adp::WebSocketAdapter, server, qq, verifyKey)
     url = "ws://$server/message?verifyKey=$verifyKey&qq=$qq"
     HTTP.WebSockets.open(url) do ws
         adp.socket = ws
+        put!(adp.output_channel, JSON3.read(readavailable(ws)))
         @sync begin
-            @async while !eof(ws)
-                try
-                    bytes = readavailable(ws)
-                    isempty(bytes) && eof(ws) && break
-                    @debug "Received data: $(String(copy(bytes)))"
-                    data = JSON3.read(bytes)::JSON3.Object
-                    dispatch(adp, data[:syncId], data[:data])
-                catch e
-                    @error "Error receiving data" exception = (e, catch_backtrace())
+            @async begin
+                while !eof(ws)
+                    try
+                        bytes = readavailable(ws)
+                        isempty(bytes) && eof(ws) && break
+                        @debug "Received data: $(String(copy(bytes)))"
+                        data = JSON3.read(bytes)::JSON3.Object
+                        dispatch(adp, data[:syncId], data[:data])
+                    catch e
+                        @error "Error receiving data" exception = (e, catch_backtrace())
+                    end
                 end
+                close(adp.output_channel)
             end
             @async for cmd in adp.input_channel
                 try
@@ -107,21 +112,23 @@ function with_entry(f, dict::AbstractDict, key, value)
     end
 end
 
-function send(adp::WebSocketAdapter, cmd::Command)
-    cmd = WebSocketCommand(cmd)
+function send(adp::WebSocketAdapter, cmd::GeneralCommand)
+    wscmd = WebSocketCommand(get_sync_id(), cmd)
     ret_ch = OutputChannel(0) do ch
-        with_entry(adp.output_dict, cmd.syncId, ch) do
-            put!(adp.input_channel, cmd)
+        with_entry(adp.output_dict, wscmd.syncId, ch) do
+            put!(adp.input_channel, wscmd)
             wait(ch)
         end
     end
-    take!(ret_ch)
+    try_convert(cmd.response_type, take!(ret_ch))
 end
 
 function dispatch(adp::WebSocketAdapter, syncId, data)
     ch = get(adp.output_dict, syncId, nothing)
     if isnothing(ch)
-        put!(adp.output_channel, data)
+        msg = try_convert(EventOrMessage, data)
+        @debug msg
+        put!(adp.output_channel, msg)
     else
         put!(ch, data)
     end
@@ -141,7 +148,7 @@ end
 
 HTTPAdapter() = HTTPAdapter("", OutputChannel(DEFAULT_BUFFER_SIZE), "", false)
 
-function loop(adp::HTTPAdapter, server, qq, verifyKey; poll_interval = 2, fetch_count = 8)
+function loop(adp::HTTPAdapter, server, qq, verifyKey; poll_interval = 1, fetch_count = 8)
     adp.server = server
     # Verify
     resp = post_restful("http://$server/verify", (), (; verifyKey))
@@ -151,23 +158,22 @@ function loop(adp::HTTPAdapter, server, qq, verifyKey; poll_interval = 2, fetch_
 
     put!(adp.output_channel, resp)
     while !adp.closed
-        cmd = Command(:fetchMessage, nothing, (; count = fetch_count), GET)
+        cmd = GeneralCommand(:fetchMessage, nothing, (; count = fetch_count), GET, RESTful{Vector{EventOrMessage}})
         data = send(adp, cmd)
-        for msg in data[:data]
+        for msg in data.data
             put!(adp.output_channel, msg)
         end
-        @debug "Received data: $data"
         sleep(poll_interval)
     end
 end
 
-command_to_path(cmd::Command) = replace(String(cmd.command), '_' => '/')
+command_to_path(cmd::GeneralCommand) = replace(string(cmd.command), '_' => '/')
 
 
-function send(adp::HTTPAdapter, cmd::Command)
+function send(adp::HTTPAdapter, cmd::GeneralCommand)
     url = "http://$(adp.server)/$(command_to_path(cmd))"
     headers = ["sessionKey" => adp.sessionKey]
-    if cmd.method == GET
+    resp = if cmd.method == GET
         get_restful(url, headers, cmd.content)
     elseif cmd.method == POST
         post_restful(url, headers, cmd.content)
@@ -175,6 +181,8 @@ function send(adp::HTTPAdapter, cmd::Command)
         r = HTTP.post(url, headers, HTTP.Form(cmd.content))
         JSON3.read(r)
     end
+    @debug "response: $resp"
+    try_convert(cmd.response_type, resp)
 end
 
 
@@ -195,11 +203,28 @@ function post_restful(url, headers, data)
 end
 
 function get_restful(url, headers, query)
+    query = StructTypes.constructfrom(Dict, query)
+    query = (k=>string(v) for (k,v) in query)
+    @debug "query = $query"
     r = HTTP.get(url, headers; query)
     data = JSON3.read(r.body)
     data[:code] == 0 || @debug data
     @assert data[:code] == 0
     return data
+end
+
+
+function try_convert(T, x)
+    try
+        StructTypes.constructfrom(T, x)
+    catch e
+        @debug "Error converting data" data = x exception = (e, catch_backtrace())
+        x
+    end
+end
+
+function send(adp::ProtocolAdapter, cmd::AbstractCommand)
+    send(adp, make_command(cmd))
 end
 
 end
