@@ -87,7 +87,9 @@ function loop(adp::WebSocketAdapter, server, qq, verifyKey)
                         @error "Error receiving data" exception = (e, catch_backtrace())
                     end
                 end
+                # to close all pending tasks
                 close(adp.output_channel)
+                foreach(close, values(adp.output_dict))
             end
             @async for cmd in adp.input_channel
                 try
@@ -165,6 +167,7 @@ function loop(adp::HTTPAdapter, server, qq, verifyKey; poll_interval = 1, fetch_
         end
         sleep(poll_interval)
     end
+    close(adp.output_channel)
 end
 
 command_to_path(cmd::GeneralCommand) = replace(string(cmd.command), '_' => '/')
@@ -195,9 +198,10 @@ function post_restful(url, headers, data)
     body = JSON3.write(data)
     json_header = "Content-Type" => "application/json"
     headers = [json_header, headers...]
+    @debug "body=$body"
     r = HTTP.post(url, headers, body)
     data = JSON3.read(r.body)
-    data[:code] == 0 || @debug data
+    data[:code] == 0 || @error data
     @assert data[:code] == 0
     return data
 end
@@ -208,7 +212,7 @@ function get_restful(url, headers, query)
     @debug "query = $query"
     r = HTTP.get(url, headers; query)
     data = JSON3.read(r.body)
-    data[:code] == 0 || @debug data
+    data[:code] == 0 || @error data
     @assert data[:code] == 0
     return data
 end
@@ -218,12 +222,13 @@ function try_convert(T, x)
     try
         StructTypes.constructfrom(T, x)
     catch e
-        @debug "Error converting data" data = x exception = (e, catch_backtrace())
+        @debug "Error deserializing data" exception = (e, catch_backtrace())
         x
     end
 end
 
 function send(adp::ProtocolAdapter, cmd::AbstractCommand)
+    @info "Sending $cmd"
     send(adp, make_command(cmd))
 end
 

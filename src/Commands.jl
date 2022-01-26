@@ -59,12 +59,14 @@ Base.@kwdef struct memberProfile <: AbstractGetProfile
 end
 
 Base.@kwdef struct MessageId
+    code::Int
+    msg::String
     messageId::Int
 end
 
 abstract type AbstractMessagingCommand <: AbstractCommand end
 method(::AbstractMessagingCommand) = POST
-response_type(::AbstractMessagingCommand) = RESTful{MessageId}
+response_type(::AbstractMessagingCommand) = MessageId
 
 Base.@kwdef struct sendFriendMessage <: AbstractMessagingCommand
     target::Optional{Int} = nothing
@@ -100,7 +102,6 @@ end
 response_type(::recall) = RESTful{Nothing}
 
 abstract type AbstractFileCommand <: AbstractCommand end
-
 method(::AbstractFileCommand) = POST
 
 struct DownloadInfo
@@ -136,6 +137,7 @@ Base.@kwdef struct file_list <: AbstractFileCommand
     size::Optional{Int} = 10  # page size
 end
 response_type(::file_list) = RESTful{Vector{FileInfo}}
+method(::file_list) = GET
 
 Base.@kwdef struct file_info <: AbstractFileCommand
     id::String
@@ -146,6 +148,7 @@ Base.@kwdef struct file_info <: AbstractFileCommand
     withDownloadInfo::Bool = false
 end
 response_type(::file_info) = RESTful{FileInfo}
+method(::file_info) = GET
 
 Base.@kwdef struct file_mkdir <: AbstractFileCommand
     id::String
@@ -193,6 +196,6 @@ response_type(::file_rename) = RESTful{Nothing}
 StructTypes.StructType(::Type{<:Union{MessageId,FileInfo,DownloadInfo}}) = StructTypes.Struct()
 StructTypes.StructType(::Type{<:AbstractCommand}) = StructTypes.Struct()
 StructTypes.StructType(::Type{<:RESTful}) = StructTypes.Struct()
-StructTypes.names(::Type{<:AbstractMessagingCommand}) = ((:quoteId, :quote))
+StructTypes.names(::Type{<:AbstractMessagingCommand}) = ((:quoteId, :quote),)
 StructTypes.omitempties(::Type{<:AbstractMessagingCommand}) = (:target, :qq, :group, :quoteId)
 StructTypes.omitempties(::Type{<:AbstractFileCommand}) = (:path, :target, :qq, :group, :offset, :size)

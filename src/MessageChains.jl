@@ -89,10 +89,10 @@ Base.@kwdef struct MessageNode
     time::Int
     senderName::String
     messageChain::MessageChain
-    messageId::Int
+    messageId::Optional{Int}
 end
 
-Base.@kwdef struct ForwardMessage <: MessageElement
+Base.@kwdef struct Forward <: MessageElement
     nodeList::Vector{MessageNode}
 end
 
@@ -106,12 +106,31 @@ Base.@kwdef struct MiraiCode <: MessageElement
     code::String
 end
 
-const message_element_types = (; Source, Quote, At, AtAll, Face, Plain, Image,
-    FlashImage, Voice, Xml, Json, Poke, Dice, MusicShare,
-    ForwardMessage, File, MiraiCode)
+const message_element_types = (; Source, Quote, At, AtAll, Face,
+    Plain, Image, FlashImage, Voice, Xml, Json, Poke, Dice,
+    MusicShare, Forward, File, MiraiCode)
 
-StructTypes.StructType(::Type{<:MessageElement}) = StructTypes.Struct()
+StructTypes.StructType(::Type{MessageNode}) = StructTypes.Struct()
 StructTypes.StructType(::Type{MessageElement}) = StructTypes.AbstractType()
 StructTypes.subtypekey(::Type{MessageElement}) = :type
 StructTypes.subtypes(::Type{MessageElement}) = message_element_types
-StructTypes.omitempties(::Type{<:ResourceElement}) = (:imageId, :voiceId, :url, :path, :base64)
+StructTypes.omitempties(::Type{<:ResourceElement}) = true
+
+# So that `type` field is also included in serialization
+StructTypes.StructType(::Type{<:MessageElement}) = StructTypes.DictType()
+
+# Reuse the infrastructure of StructTypes
+function StructTypes.construct(T::Type{<:MessageElement}, x::Dict; kw...)
+    StructTypes.constructfrom(StructTypes.Struct(), T, StructTypes.DictType(), x)
+end
+
+function StructTypes.keyvaluepairs(x::MessageElement)
+    Iterators.map((:type, propertynames(x)...)) do name
+        if name == :type
+            :type => typeof(x).name.name
+        else
+            name => getproperty(x, name)
+        end
+    end
+end
+
