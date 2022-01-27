@@ -349,6 +349,52 @@ subcommand(::updateMemberInfo) = :update
 method(::updateMemberInfo) = CommandMethods.POST
 response_type(::updateMemberInfo) = RESTful{Nothing}
 
+abstract type AbstractRequestCommand <: AbstractCommand end
+method(::AbstractRequestCommand) = CommandMethods.POST
+response_type(::AbstractRequestCommand) = RESTful{Nothing}
+
+module NewFriendOperations
+const ACCEPT = 0
+const REFUSE = 1
+const REFUSE_AND_BLACKLIST = 2
+end
+
+Base.@kwdef struct resp_newFriendRequestEvent <: AbstractRequestCommand
+    eventId::Int
+    fromId::FriendId
+    groupId::GroupId # 0 if not from a group
+    operate::Int
+    message::String
+end
+
+module MemberJoinOperations
+const ACCEPT = 0
+const REFUSE = 1
+const IGNORE = 2
+const REFUSE_AND_BLACKLIST = 3
+const IGNORE_AND_BLACKLIST = 4
+end
+
+Base.@kwdef struct resp_memberJoinRequestEvent <: AbstractRequestCommand
+    eventId::Int
+    fromId::FriendId
+    groupId::GroupId
+    operate::Int
+    message::String
+end
+
+module BotInviteJoinGroupOperations
+const ACCEPT = 0
+const REFUSE = 1
+end
+
+Base.@kwdef struct resp_botInvitedJoinGroupRequestEvent <: AbstractRequestCommand
+    eventId::Int
+    fromId::FriendId
+    groupId::GroupId
+    operate::Int
+    message::String
+end
 
 
 abstract type AbstractGetMessageCommand <: AbstractCommand end
@@ -373,8 +419,6 @@ end
 
 struct countMessage <: AbstractGetMessageCommand end
 response_type(::countMessage) = RESTful{Int}
-
-# TO BE CONTINUED...
 
 
 StructTypes.StructType(::Type{<:AbstractCommand}) = StructTypes.Struct()

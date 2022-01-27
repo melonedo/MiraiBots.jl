@@ -11,6 +11,8 @@ const GroupOrFriendId = Union{FriendId,GroupId}
 const MessageId = Int
 const TimeStamp = Int
 const DurationSeconds = Int
+const EventId = Int
+const DeviceKind = Int
 
 include("MessageChains.jl")
 include("EventsAndMessages.jl")
