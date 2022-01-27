@@ -69,18 +69,18 @@ response_type(::AbstractGetProfileCommand) = Profile
 Base.@kwdef struct botProfile <: AbstractGetProfileCommand end
 
 Base.@kwdef struct friendProfile <: AbstractGetProfileCommand
-    target::Int
+    target::FriendId
 end
 
 Base.@kwdef struct memberProfile <: AbstractGetProfileCommand
-    target::Int   # group id
-    memberId::Int # member qq
+    target::GroupId   # group id
+    memberId::FriendId # member qq
 end
 
 StructTypes.@Struct struct MessageIdResponse
     code::Int
     msg::String
-    messageId::Int
+    messageId::MessageId
 end
 
 abstract type AbstractMessagingCommand <: AbstractCommand end
@@ -88,35 +88,35 @@ method(::AbstractMessagingCommand) = CommandMethods.POST
 response_type(::AbstractMessagingCommand) = MessageIdResponse
 
 Base.@kwdef struct sendFriendMessage <: AbstractMessagingCommand
-    target::Optional{Int} = nothing
-    qq::Optional{Int} = nothing # Choose one between target and qq
-    quoteId::Optional{Int} = nothing
+    target::Optional{FriendId} = nothing
+    qq::Optional{FriendId} = nothing # Choose one between target and qq
+    quoteId::Optional{MessageId} = nothing
     messageChain::MessageChain
 end
 
 Base.@kwdef struct sendGroupMessage <: AbstractMessagingCommand
-    target::Optional{Int} = nothing
-    group::Optional{Int} = nothing # Choose one between target and group
-    quoteId::Optional{Int} = nothing
+    target::Optional{GroupId} = nothing
+    group::Optional{GroupId} = nothing # Choose one between target and group
+    quoteId::Optional{MessageId} = nothing
     messageChain::MessageChain
 end
 
 Base.@kwdef struct sendTempMessage <: AbstractMessagingCommand
-    qq::Int
-    group::Int
-    quoteId::Optional{Int} = nothing
+    qq::FriendId
+    group::GroupId
+    quoteId::Optional{MessageId} = nothing
     messageChain::MessageChain
 end
 
 Base.@kwdef struct sendNudge <: AbstractMessagingCommand
-    target::Int  # target qq
-    subject::Int # group or friend id
+    target::FriendId  # target qq
+    subject::GroupOrFriendId # group or friend id
     kind::NudgeKind
 end
 response_type(::sendNudge) = RESTful{Nothing}
 
 Base.@kwdef struct recall <: AbstractMessagingCommand
-    target::Int
+    target::MessageId
 end
 response_type(::recall) = RESTful{Nothing}
 
@@ -127,9 +127,9 @@ StructTypes.@Struct struct DownloadInfo
     sha1::String
     md5::String
     downloadTimes::Int
-    uploaderId::Int
-    uploadTime::Int
-    lastModifyTime::Int
+    uploaderId::FriendId
+    uploadTime::TimeStamp
+    lastModifyTime::TimeStamp
     url::String
 end
 
@@ -148,9 +148,9 @@ end
 Base.@kwdef struct file_list <: AbstractFileCommand
     id::String # folder id
     path::Optional{String} = nothing # folder name
-    target::Optional{Int} = nothing
-    group::Optional{Int} = nothing
-    qq::Optional{Int} = nothing
+    target::Optional{GroupOrFriendId} = nothing
+    group::Optional{GroupId} = nothing
+    qq::Optional{FriendId} = nothing
     withDownloadInfo::Bool = false
     offset::Optional{Int} = 1 # page number
     size::Optional{Int} = 10  # page size
@@ -161,9 +161,9 @@ method(::file_list) = CommandMethods.GET
 Base.@kwdef struct file_info <: AbstractFileCommand
     id::String
     path::Optional{String} = nothing
-    target::Optional{Int} = nothing
-    group::Optional{Int} = nothing
-    qq::Optional{Int} = nothing
+    target::Optional{GroupOrFriendId} = nothing
+    group::Optional{GroupId} = nothing
+    qq::Optional{FriendId} = nothing
     withDownloadInfo::Bool = false
 end
 response_type(::file_info) = RESTful{FileInfo}
@@ -172,9 +172,9 @@ method(::file_info) = CommandMethods.GET
 Base.@kwdef struct file_mkdir <: AbstractFileCommand
     id::String
     path::Optional{String} = nothing
-    target::Optional{Int} = nothing
-    group::Optional{Int} = nothing
-    qq::Optional{Int} = nothing
+    target::Optional{GroupOrFriendId} = nothing
+    group::Optional{GroupId} = nothing
+    qq::Optional{FriendId} = nothing
     directoryName::String
 end
 response_type(::file_mkdir) = RESTful{FileInfo}
@@ -182,18 +182,18 @@ response_type(::file_mkdir) = RESTful{FileInfo}
 Base.@kwdef struct file_delete <: AbstractFileCommand
     id::String
     path::Optional{String} = nothing
-    target::Optional{Int} = nothing
-    group::Optional{Int} = nothing
-    qq::Optional{Int} = nothing
+    target::Optional{GroupOrFriendId} = nothing
+    group::Optional{GroupId} = nothing
+    qq::Optional{FriendId} = nothing
 end
 response_type(::file_delete) = RESTful{Nothing}
 
 Base.@kwdef struct file_move <: AbstractFileCommand
     id::String
     path::Optional{String} = nothing
-    target::Optional{Int} = nothing
-    group::Optional{Int} = nothing
-    qq::Optional{Int} = nothing
+    target::Optional{GroupOrFriendId} = nothing
+    group::Optional{GroupId} = nothing
+    qq::Optional{FriendId} = nothing
     moveTo::Optional{String} # destination folder id
     moveToPath::Optional{String}
 end
@@ -202,9 +202,9 @@ response_type(::file_move) = RESTful{Nothing}
 Base.@kwdef struct file_rename <: AbstractFileCommand
     id::String
     path::Optional{String} = nothing
-    target::Optional{Int} = nothing
-    group::Optional{Int} = nothing
-    qq::Optional{Int} = nothing
+    target::Optional{GroupOrFriendId} = nothing
+    group::Optional{GroupId} = nothing
+    qq::Optional{FriendId} = nothing
     renameTo::String
 end
 response_type(::file_rename) = RESTful{Nothing}
@@ -247,11 +247,108 @@ response_type(::uploadVoice) = VoiceIdResponse
 
 Base.@kwdef struct file_upload <: AbstractUploadCommand
     type::UploadType
-    target::Int
+    target::GroupOrFriendId
     path::String
     file::Any # What ever that can be used by HTTP.Form
 end
 response_type(::file_upload) = RESTful{FileInfo}
+
+
+Base.@kwdef struct deleteFriend <: AbstractCommand
+    target::FriendId
+end
+method(::deleteFriend) = CommandMethods.POST
+response_type(::deleteFriend) = RESTful{Nothing}
+
+
+abstract type AbstractGroupManagementCommand <: AbstractCommand end
+method(::AbstractGroupManagementCommand) = CommandMethods.POST
+response_type(::AbstractGroupManagementCommand) = RESTful{Nothing}
+
+Base.@kwdef struct mute <: AbstractGroupManagementCommand
+    target::GroupId
+    memberId::FriendId
+    time::TimeStamp # seconds
+end
+
+Base.@kwdef struct unmute <: AbstractGroupManagementCommand
+    target::GroupId
+    memberId::FriendId
+end
+
+Base.@kwdef struct kick <: AbstractGroupManagementCommand
+    target::GroupId
+    memberId::FriendId
+    msg::Optional{String} = nothing
+end
+
+Base.@kwdef struct quit <: AbstractGroupManagementCommand
+    target::GroupId
+end
+
+Base.@kwdef struct muteAll <: AbstractGroupManagementCommand
+    target::GroupId
+end
+
+Base.@kwdef struct unmuteAll <: AbstractGroupManagementCommand
+    target::GroupId
+end
+
+Base.@kwdef struct setEssence <: AbstractGroupManagementCommand
+    target::MessageId
+end
+
+Base.@kwdef struct memberAdmin <: AbstractGroupManagementCommand
+    target::GroupId
+    memberId::FriendId
+    assign::Bool
+end
+
+Base.@kwdef struct GroupConfig
+    name::Optional{String} = nothing # Group name
+    announcement::Optional{String} = nothing
+    confessTalk::Optional{Bool} = nothing
+    allowMemberInvite::Optional{Bool} = nothing
+    autoApprove::Optional{Bool} = nothing
+    anonymousChat::Optional{Bool} = nothing
+end
+StructTypes.StructType(::Type{GroupConfig}) = StructTypes.Struct()
+
+Base.@kwdef struct getGroupConfig <: AbstractGroupManagementCommand
+    target::GroupId
+end
+command(::getGroupConfig) = :groupConfig
+subcommand(::getGroupConfig) = :get
+method(::getGroupConfig) = CommandMethods.GET
+response_type(::getGroupConfig) = GroupConfig
+
+Base.@kwdef struct updateGroupConfig <: AbstractGroupManagementCommand
+    target::GroupId
+    config::GroupConfig
+end
+command(::updateGroupConfig) = :groupConfig
+subcommand(::updateGroupConfig) = :update
+method(::updateGroupConfig) = CommandMethods.POST
+response_type(::updateGroupConfig) = RESTful{Nothing}
+
+Base.@kwdef struct getMemberInfo <: AbstractGroupManagementCommand
+    target::GroupId
+    memberId::FriendId
+end
+command(::getMemberInfo) = :memberInfo
+subcommand(::getMemberInfo) = :get
+method(::getMemberInfo) = CommandMethods.GET
+response_type(::getMemberInfo) = Member
+
+Base.@kwdef struct updateMemberInfo <: AbstractGroupManagementCommand
+    target::GroupId
+    memberId::FriendId
+end
+command(::updateMemberInfo) = :memberInfo
+subcommand(::updateMemberInfo) = :update
+method(::updateMemberInfo) = CommandMethods.POST
+response_type(::updateMemberInfo) = RESTful{Nothing}
+
 
 
 abstract type AbstractGetMessageCommand <: AbstractCommand end

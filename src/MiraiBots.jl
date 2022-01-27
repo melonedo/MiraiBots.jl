@@ -4,6 +4,14 @@ using HTTP, JSON3, StructTypes
 
 const Optional{T} = Union{T,Nothing}
 
+# TODO: really make them different
+const FriendId = Int
+const GroupId = Int
+const GroupOrFriendId = Union{FriendId,GroupId}
+const MessageId = Int
+const TimeStamp = Int
+const DurationSeconds = Int
+
 include("MessageChains.jl")
 include("EventsAndMessages.jl")
 include("Commands.jl")
@@ -72,7 +80,9 @@ function loop(adp::WebSocketAdapter, server, qq, verifyKey)
     url = "ws://$server/message?verifyKey=$verifyKey&qq=$qq"
     HTTP.WebSockets.open(url) do ws
         adp.socket = ws
-        put!(adp.output_channel, JSON3.read(readavailable(ws)))
+        hello = JSON3.read(readavailable(ws))
+        @assert hasproperty(hello, :data)
+        put!(adp.output_channel, hello.data)
         @sync begin
             @async begin
                 while !eof(ws)
@@ -163,7 +173,6 @@ function loop(adp::HTTPAdapter, server, qq, verifyKey; poll_interval = 1, fetch_
     resp = post_restful("http://$server/bind", (), (; adp.sessionKey, qq))
 
     put!(adp.output_channel, resp)
-    # cmd = GeneralCommand(:fetchMessage, nothing, (; count = fetch_count), GET, RESTful{Vector{EventOrMessage}})
     cmd = fetchLatestMessage(fetch_count)
     while !adp.closed
         data = nothing
@@ -253,6 +262,8 @@ function try_convert(T, x)
 end
 
 struct RESTfulRequestFailed <: Exception
+    cmd::AbstractCommand
+    code::Int
     msg::String
 end
 
@@ -262,7 +273,7 @@ function send(adp::ProtocolAdapter, cmd::AbstractCommand)
     resp = send(adp, make_command(cmd))
     ret = try_convert(response_type(cmd), resp)
     if response_type(cmd) <: RESTful && hasproperty(ret, :code) && ret.code != 0
-        throw(RESTfulRequestFailed("Request $(typeof(cmd)) failed: $(ret.code) $(ret.msg)"))
+        throw(RESTfulRequestFailed(cmd, ret.code, ret.msg))
     else
         ret
     end

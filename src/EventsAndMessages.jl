@@ -8,7 +8,7 @@ abstract type AbstractMessage <: EventOrMessage end
 
 
 struct Friend
-    id::Int
+    id::FriendId
     nickname::String
     remark::String
 end
@@ -23,24 +23,24 @@ end
 const Permission = Permissions.Permission
 
 struct Group
-    id::Int
+    id::GroupId
     name::String
     permission::Permission
 end
 
 struct Member
-    id::Int
+    id::FriendId
     memberName::String
     specialTitle::String
     permission::Permission
-    joinTimestamp::Int
-    lastSpeakTimestamp::Int
-    muteTimeRemaining::Int
+    joinTimestamp::TimeStamp
+    lastSpeakTimestamp::TimeStamp
+    muteTimeRemaining::DurationSeconds
     group::Group
 end
 
 struct Platform
-    id::Int
+    id::Int # What is this?
     platform::String
 end
 
@@ -71,23 +71,23 @@ struct OtherClientMessage <: AbstractMessage
 end
 
 struct BotOnlineEvent <: AbstractEvent
-    qq::Int
+    qq::FriendId
 end
 
 struct BotOfflineEventActive <: AbstractEvent
-    qq::Int
+    qq::FriendId
 end
 
 struct BotOfflineEventForce <: AbstractEvent
-    qq::Int
+    qq::FriendId
 end
 
 struct BotOfflineEventDropped <: AbstractEvent
-    qq::Int
+    qq::FriendId
 end
 
 struct BotReloginEvent <: AbstractEvent
-    qq::Int
+    qq::FriendId
 end
 
 struct FriendInputStatusChangedEvent <: AbstractEvent
@@ -108,7 +108,7 @@ struct BotGroupPermissionChangeEvent <: AbstractEvent
 end
 
 struct BotMuteEvent <: AbstractEvent
-    durationSeconds::Int
+    durationSeconds::DurationSeconds
     operator::Member
 end
 
@@ -131,18 +131,18 @@ struct BotLeaveEventKick <: AbstractEvent
 end
 
 struct GroupRecallEvent <: AbstractEvent
-    authorId::Int
-    messageId::Int
-    time::Int
+    authorId::FriendId
+    messageId::MessageId
+    time::TimeStamp
     group::Group
     operator::Member
 end
 
 struct FriendRecallEvent <: AbstractEvent
-    authoerId::Int
-    messageId::Int
-    time::Int
-    operator::Int
+    authorId::FriendId
+    messageId::MessageId
+    time::TimeStamp
+    operator::FriendId
 end
 
 module NudgeKinds
@@ -165,16 +165,16 @@ Base.string(x::NudgeKind) = x == NudgeKinds.GROUP ? "Group" : "Friend"
 
 
 struct Subject
-    id::Int
+    id::GroupOrFriendId
     kind::NudgeKind
 end
 
 struct NudgeEvent <: AbstractEvent
-    fromId::Int
+    fromId::FriendId
     subject::Subject
     action::String
     suffix::String
-    target::Int
+    target::FriendId
 end
 
 # TO BE CONTINUED...

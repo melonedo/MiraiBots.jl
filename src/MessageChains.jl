@@ -3,20 +3,20 @@ abstract type MessageElement end
 const MessageChain = Vector{MessageElement}
 
 Base.@kwdef struct Source <: MessageElement
-    id::Int
-    time::Int
+    id::MessageId
+    time::TimeStamp
 end
 
 Base.@kwdef struct Quote <: MessageElement
-    id::Int
-    groupId::Int
-    senderId::Int
-    targetId::Int
+    id::MessageId
+    groupId::GroupId # 0 for friend messages
+    senderId::FriendId
+    targetId::GroupOrFriendId # original receiver
     origin::MessageChain
 end
 
 Base.@kwdef struct At <: MessageElement
-    target::Int
+    target::FriendId
     display::String
 end
 
@@ -85,11 +85,11 @@ Base.@kwdef struct MusicShare <: MessageElement
 end
 
 Base.@kwdef struct MessageNode
-    senderId::Int
-    time::Int
+    senderId::FriendId
+    time::TimeStamp
     senderName::String
     messageChain::MessageChain
-    messageId::Optional{Int}
+    messageId::Optional{MessageId}
 end
 
 Base.@kwdef struct Forward <: MessageElement
