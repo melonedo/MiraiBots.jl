@@ -15,7 +15,7 @@ Adapter for different protocols that Mirai HTTP API provides.
 
 - `loop`: start sending and receiving. The function blocks, so you would like to call it as `@async loop(...)`.
 - `send`: post a message, wait and return the result. Because the adapter need to be initialized, do not send until the first message is received.
-- `receive`: wait and retrieve a message. The first message is always session info.
+- `receive`: wait and retrieve a message (serialized when possible) or exception. The first message is always session info.
 - `get_output_channel`: alternative to `receive`, you can manipulate the underlying channel directly.
 - `close`: attempt to shutdown the adapter.
 """
@@ -34,11 +34,10 @@ struct GeneralCommand
     subCommand::Optional{Symbol}
     content::Any
     method::CommandMethod
-    response_type::Type
 end
 
 function make_command(cmd::AbstractCommand)
-    GeneralCommand(command(cmd), subcommand(cmd), cmd, method(cmd), response_type(cmd))
+    GeneralCommand(command(cmd), subcommand(cmd), cmd, method(cmd))
 end
 
 struct WebSocketCommand
@@ -53,8 +52,8 @@ WebSocketCommand(syncId, cmd::GeneralCommand) = WebSocketCommand(syncId, cmd.com
 StructTypes.StructType(::Type{WebSocketCommand}) = StructTypes.Struct()
 StructTypes.omitempties(::Type{WebSocketCommand}) = (:subCommand, :content)
 
-
-const OutputChannel = Channel{Union{JSON3.Object, EventOrMessage}}
+const ExceptionAndBacktrace = Pair{Exception, Union{Base.return_types(catch_backtrace, ())...}}
+const OutputChannel = Channel{Union{JSON3.Object, EventOrMessage, ExceptionAndBacktrace}}
 const DEFAULT_BUFFER_SIZE = 16
 
 mutable struct WebSocketAdapter <: ProtocolAdapter
@@ -84,24 +83,29 @@ function loop(adp::WebSocketAdapter, server, qq, verifyKey)
                         data = JSON3.read(bytes)::JSON3.Object
                         dispatch(adp, data[:syncId], data[:data])
                     catch e
-                        @error "Error receiving data" exception = (e, catch_backtrace())
+                        put!(adp.output_channel, e => catch_backtrace())
                     end
                 end
                 # to close all pending tasks
                 close(adp.output_channel)
                 foreach(close, values(adp.output_dict))
+                @info "WebSocket adapter receiver quitted"
             end
-            @async for cmd in adp.input_channel
-                try
-                    @debug "Command: $cmd"
-                    str = JSON3.write(cmd)
-                    @debug "Sending command: $str"
-                    write(ws, str)
-                catch e
-                    @error "Error sending command" exception = (e, catch_backtrace())
+            @async begin
+                for cmd in adp.input_channel
+                    try
+                        @debug "Command: $cmd"
+                        str = JSON3.write(cmd)
+                        @debug "Sending command: $str"
+                        write(ws, str)
+                    catch e
+                        put!(adp.output_channel, e => catch_backtrace())
+                    end
                 end
+                @info "WebSocket adapter sender quitted"
             end
         end
+        @info "WebSocket adapter quitted"
     end
 end
 
@@ -122,7 +126,7 @@ function send(adp::WebSocketAdapter, cmd::GeneralCommand)
             wait(ch)
         end
     end
-    try_convert(cmd.response_type, take!(ret_ch))
+    take!(ret_ch)
 end
 
 function dispatch(adp::WebSocketAdapter, syncId, data)
@@ -159,15 +163,26 @@ function loop(adp::HTTPAdapter, server, qq, verifyKey; poll_interval = 1, fetch_
     resp = post_restful("http://$server/bind", (), (; adp.sessionKey, qq))
 
     put!(adp.output_channel, resp)
+    # cmd = GeneralCommand(:fetchMessage, nothing, (; count = fetch_count), GET, RESTful{Vector{EventOrMessage}})
+    cmd = fetchLatestMessage(fetch_count)
     while !adp.closed
-        cmd = GeneralCommand(:fetchMessage, nothing, (; count = fetch_count), GET, RESTful{Vector{EventOrMessage}})
-        data = send(adp, cmd)
-        for msg in data.data
-            put!(adp.output_channel, msg)
+        data = nothing
+        try
+            data = send(adp, cmd)::response_type(cmd)
+            for msg in data.data
+                put!(adp.output_channel, msg)
+            end
+        catch e
+            if isnothing(data)
+                put!(adp.output_channel, e=>catch_backtrace())
+            else
+                put!(adp.output_channel, dat)
+            end
         end
         sleep(poll_interval)
     end
     close(adp.output_channel)
+    @info "HTTP adapter quitted"
 end
 
 command_to_path(cmd::GeneralCommand) = replace(string(cmd.command), '_' => '/')
@@ -185,7 +200,7 @@ function send(adp::HTTPAdapter, cmd::GeneralCommand)
         JSON3.read(r)
     end
     @debug "response: $resp"
-    try_convert(cmd.response_type, resp)
+    resp
 end
 
 
@@ -229,7 +244,8 @@ end
 
 function send(adp::ProtocolAdapter, cmd::AbstractCommand)
     @info "Sending $cmd"
-    send(adp, make_command(cmd))
+    resp = send(adp, make_command(cmd))
+    try_convert(response_type(cmd), resp)
 end
 
 end

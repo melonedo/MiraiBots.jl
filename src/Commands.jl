@@ -58,7 +58,7 @@ Base.@kwdef struct memberProfile <: AbstractGetProfile
     memberId::Int # member qq
 end
 
-Base.@kwdef struct MessageId
+struct MessageIdResponse
     code::Int
     msg::String
     messageId::Int
@@ -66,7 +66,7 @@ end
 
 abstract type AbstractMessagingCommand <: AbstractCommand end
 method(::AbstractMessagingCommand) = POST
-response_type(::AbstractMessagingCommand) = MessageId
+response_type(::AbstractMessagingCommand) = MessageIdResponse
 
 Base.@kwdef struct sendFriendMessage <: AbstractMessagingCommand
     target::Optional{Int} = nothing
@@ -190,10 +190,34 @@ Base.@kwdef struct file_rename <: AbstractFileCommand
 end
 response_type(::file_rename) = RESTful{Nothing}
 
+
+abstract type AbstractGetMessageCommand <: AbstractCommand end
+method(::AbstractGetMessageCommand) = GET
+response_type(::AbstractGetMessageCommand) = RESTful{Vector{EventOrMessage}}
+
+struct fetchMessage <: AbstractGetMessageCommand
+    count::Int
+end
+
+struct fetchLatestMessage <: AbstractGetMessageCommand
+    count::Int
+end
+
+struct peekMessage <: AbstractGetMessageCommand
+    count::Int
+end
+
+struct peekLatestMessage <: AbstractGetMessageCommand
+    count::Int
+end
+
+struct countMessage <: AbstractGetMessageCommand end
+response_type(::countMessage) = RESTful{Int}
+
 # TO BE CONTINUED...
 
 
-StructTypes.StructType(::Type{<:Union{MessageId,FileInfo,DownloadInfo}}) = StructTypes.Struct()
+StructTypes.StructType(::Type{<:Union{MessageIdResponse,FileInfo,DownloadInfo}}) = StructTypes.Struct()
 StructTypes.StructType(::Type{<:AbstractCommand}) = StructTypes.Struct()
 StructTypes.StructType(::Type{<:RESTful}) = StructTypes.Struct()
 StructTypes.names(::Type{<:AbstractMessagingCommand}) = ((:quoteId, :quote),)

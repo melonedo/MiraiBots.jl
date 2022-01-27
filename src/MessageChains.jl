@@ -114,23 +114,19 @@ StructTypes.StructType(::Type{MessageNode}) = StructTypes.Struct()
 StructTypes.StructType(::Type{MessageElement}) = StructTypes.AbstractType()
 StructTypes.subtypekey(::Type{MessageElement}) = :type
 StructTypes.subtypes(::Type{MessageElement}) = message_element_types
-StructTypes.omitempties(::Type{<:ResourceElement}) = true
 
 # So that `type` field is also included in serialization
 StructTypes.StructType(::Type{<:MessageElement}) = StructTypes.DictType()
 
-# Reuse the infrastructure of StructTypes
-function StructTypes.construct(T::Type{<:MessageElement}, x::Dict; kw...)
-    StructTypes.constructfrom(StructTypes.Struct(), T, StructTypes.DictType(), x)
+function StructTypes.construct(T::Type{<:MessageElement}, x::Dict)
+    # Force T to be StructTypes.Struct to reuse the infrastructure of StructTypes
+    StructTypes.constructfrom(StructTypes.Struct(), T, x)
 end
 
-function StructTypes.keyvaluepairs(x::MessageElement)
-    Iterators.map((:type, propertynames(x)...)) do name
-        if name == :type
-            :type => typeof(x).name.name
-        else
-            name => getproperty(x, name)
-        end
+@generated function StructTypes.keyvaluepairs(x::MessageElement)
+    fields = (:($f = x.$f) for f in fieldnames(x))
+    quote
+        pairs((type = $(Meta.quot(x.name.name)), $(fields...)))
     end
 end
 
