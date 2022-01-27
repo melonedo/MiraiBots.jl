@@ -1,11 +1,13 @@
 abstract type AbstractCommand end
 
-
+module CommandMethods
 @enum CommandMethod begin
     GET
     POST
     UPLOAD
 end
+end
+const CommandMethod = CommandMethods.CommandMethod
 
 command(cmd::AbstractCommand) = typeof(cmd).name.name
 subcommand(::AbstractCommand) = nothing
@@ -16,8 +18,22 @@ Base.@kwdef struct RESTful{T}
     data::T
 end
 
+StructTypes.@Struct struct VersionResponse
+    version::VersionNumber
+end
+
+struct about <: AbstractCommand end
+method(::about) = CommandMethods.GET
+response_type(::about) = RESTful{VersionResponse}
+
+struct messageFromId <: AbstractCommand
+    id::Int
+end
+method(::messageFromId) = CommandMethods.GET
+response_type(::messageFromId) = RESTful{MessageChain}
+
 abstract type AbstractListCommand <: AbstractCommand end
-method(::AbstractListCommand) = GET
+method(::AbstractListCommand) = CommandMethods.GET
 
 Base.@kwdef struct friendList <: AbstractListCommand end
 response_type(::friendList) = RESTful{Vector{Friend}}
@@ -28,13 +44,16 @@ response_type(::groupList) = RESTful{Vector{Group}}
 Base.@kwdef struct memberList <: AbstractListCommand end
 response_type(::memberList) = RESTful{Vector{Member}}
 
+module Sexes
 @enum Sex begin
     UNKNOWN
     MALE
     FEMALE
 end
+end
+const Sex = Sexes.Sex
 
-Base.@kwdef struct Profile <: AbstractCommand
+StructTypes.@Struct struct Profile <: AbstractCommand
     nickname::String
     email::String
     age::Int
@@ -43,29 +62,29 @@ Base.@kwdef struct Profile <: AbstractCommand
     sex::Sex
 end
 
-abstract type AbstractGetProfile <: AbstractCommand end
-method(::AbstractGetProfile) = GET
-response_type(::AbstractGetProfile) = Profile
+abstract type AbstractGetProfileCommand <: AbstractCommand end
+method(::AbstractGetProfileCommand) = CommandMethods.GET
+response_type(::AbstractGetProfileCommand) = Profile
 
-Base.@kwdef struct botProfile <: AbstractGetProfile end
+Base.@kwdef struct botProfile <: AbstractGetProfileCommand end
 
-Base.@kwdef struct friendProfile <: AbstractGetProfile
+Base.@kwdef struct friendProfile <: AbstractGetProfileCommand
     target::Int
 end
 
-Base.@kwdef struct memberProfile <: AbstractGetProfile
+Base.@kwdef struct memberProfile <: AbstractGetProfileCommand
     target::Int   # group id
     memberId::Int # member qq
 end
 
-struct MessageIdResponse
+StructTypes.@Struct struct MessageIdResponse
     code::Int
     msg::String
     messageId::Int
 end
 
 abstract type AbstractMessagingCommand <: AbstractCommand end
-method(::AbstractMessagingCommand) = POST
+method(::AbstractMessagingCommand) = CommandMethods.POST
 response_type(::AbstractMessagingCommand) = MessageIdResponse
 
 Base.@kwdef struct sendFriendMessage <: AbstractMessagingCommand
@@ -102,9 +121,9 @@ end
 response_type(::recall) = RESTful{Nothing}
 
 abstract type AbstractFileCommand <: AbstractCommand end
-method(::AbstractFileCommand) = POST
+method(::AbstractFileCommand) = CommandMethods.POST
 
-struct DownloadInfo
+StructTypes.@Struct struct DownloadInfo
     sha1::String
     md5::String
     downloadTimes::Int
@@ -114,7 +133,7 @@ struct DownloadInfo
     url::String
 end
 
-struct FileInfo
+StructTypes.@Struct struct FileInfo
     name::String
     id::Optional{String} # Empty for root
     path::String
@@ -137,7 +156,7 @@ Base.@kwdef struct file_list <: AbstractFileCommand
     size::Optional{Int} = 10  # page size
 end
 response_type(::file_list) = RESTful{Vector{FileInfo}}
-method(::file_list) = GET
+method(::file_list) = CommandMethods.GET
 
 Base.@kwdef struct file_info <: AbstractFileCommand
     id::String
@@ -148,7 +167,7 @@ Base.@kwdef struct file_info <: AbstractFileCommand
     withDownloadInfo::Bool = false
 end
 response_type(::file_info) = RESTful{FileInfo}
-method(::file_info) = GET
+method(::file_info) = CommandMethods.GET
 
 Base.@kwdef struct file_mkdir <: AbstractFileCommand
     id::String
@@ -190,9 +209,53 @@ Base.@kwdef struct file_rename <: AbstractFileCommand
 end
 response_type(::file_rename) = RESTful{Nothing}
 
+abstract type AbstractUploadCommand <: AbstractCommand end
+method(::AbstractUploadCommand) = CommandMethods.UPLOAD
+
+module UploadTypes
+@enum UploadType begin
+    FRIEND
+    GROUP
+    TEMP
+end
+end
+const UploadType = UploadTypes.UploadType
+
+Base.string(x::UploadType) = x == UploadTypes.FRIEND ? "friend" : x == UploadTypes.GROUP ? "group" : "temp"
+
+StructTypes.@Struct struct ImageIdResponse
+    imageId::String
+    url::String
+end
+
+Base.@kwdef struct uploadImage <: AbstractUploadCommand
+    type::UploadType
+    img::Any
+end
+response_type(::uploadImage) = ImageIdResponse
+
+StructTypes.@Struct struct VoiceIdResponse
+    voiceId::String
+    url::String
+end
+
+Base.@kwdef struct uploadVoice <: AbstractUploadCommand
+    type::UploadType
+    voice::Any
+end
+response_type(::uploadVoice) = VoiceIdResponse
+
+Base.@kwdef struct file_upload <: AbstractUploadCommand
+    type::UploadType
+    target::Int
+    path::String
+    file::Any # What ever that can be used by HTTP.Form
+end
+response_type(::file_upload) = RESTful{FileInfo}
+
 
 abstract type AbstractGetMessageCommand <: AbstractCommand end
-method(::AbstractGetMessageCommand) = GET
+method(::AbstractGetMessageCommand) = CommandMethods.GET
 response_type(::AbstractGetMessageCommand) = RESTful{Vector{EventOrMessage}}
 
 struct fetchMessage <: AbstractGetMessageCommand
@@ -217,7 +280,6 @@ response_type(::countMessage) = RESTful{Int}
 # TO BE CONTINUED...
 
 
-StructTypes.StructType(::Type{<:Union{MessageIdResponse,FileInfo,DownloadInfo}}) = StructTypes.Struct()
 StructTypes.StructType(::Type{<:AbstractCommand}) = StructTypes.Struct()
 StructTypes.StructType(::Type{<:RESTful}) = StructTypes.Struct()
 StructTypes.names(::Type{<:AbstractMessagingCommand}) = ((:quoteId, :quote),)

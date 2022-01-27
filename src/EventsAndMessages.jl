@@ -13,11 +13,14 @@ struct Friend
     remark::String
 end
 
+module Permissions
 @enum Permission begin
     OWNER
     ADMINISTRATOR
     MEMBER
 end
+end
+const Permission = Permissions.Permission
 
 struct Group
     id::Int
@@ -142,20 +145,23 @@ struct FriendRecallEvent <: AbstractEvent
     operator::Int
 end
 
+module NudgeKinds
 @enum NudgeKind begin
     GROUP
     FRIEND
     STRANGER
 end
+end
+const NudgeKind = NudgeKinds.NudgeKind
 
 function StructTypes.construct(::Type{NudgeKind}, s::String; kw...)
-    s == "Group" && return GROUP
-    s == "Friend" && return FRIEND
-    s == "Stranger" && return STRANGER
+    s == "Group" && return NudgeKinds.GROUP
+    s == "Friend" && return NudgeKinds.FRIEND
+    s == "Stranger" && return NudgeKinds.STRANGER
     error("Unknown subject kind")
 end
 
-Base.string(x::NudgeKind) = x == GROUP ? "Group" : "Friend"
+Base.string(x::NudgeKind) = x == NudgeKinds.GROUP ? "Group" : "Friend"
 
 
 struct Subject

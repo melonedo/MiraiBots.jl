@@ -174,7 +174,7 @@ function loop(adp::HTTPAdapter, server, qq, verifyKey; poll_interval = 1, fetch_
             end
         catch e
             if isnothing(data)
-                put!(adp.output_channel, e=>catch_backtrace())
+                put!(adp.output_channel, e => catch_backtrace())
             else
                 put!(adp.output_channel, dat)
             end
@@ -182,6 +182,7 @@ function loop(adp::HTTPAdapter, server, qq, verifyKey; poll_interval = 1, fetch_
         sleep(poll_interval)
     end
     close(adp.output_channel)
+    resp = post_restful("http://$server/release", (), (; adp.sessionKey, qq))
     @info "HTTP adapter quitted"
 end
 
@@ -191,15 +192,13 @@ command_to_path(cmd::GeneralCommand) = replace(string(cmd.command), '_' => '/')
 function send(adp::HTTPAdapter, cmd::GeneralCommand)
     url = "http://$(adp.server)/$(command_to_path(cmd))"
     headers = ["sessionKey" => adp.sessionKey]
-    resp = if cmd.method == GET
+    resp = if cmd.method == CommandMethods.GET
         get_restful(url, headers, cmd.content)
-    elseif cmd.method == POST
+    elseif cmd.method == CommandMethods.POST
         post_restful(url, headers, cmd.content)
-    elseif cmd.method == UPLOAD
-        r = HTTP.post(url, headers, HTTP.Form(cmd.content))
-        JSON3.read(r)
+    elseif cmd.method == CommandMethods.UPLOAD
+        upload(url, headers, cmd.content)
     end
-    @debug "response: $resp"
     resp
 end
 
@@ -216,20 +215,31 @@ function post_restful(url, headers, data)
     @debug "body=$body"
     r = HTTP.post(url, headers, body)
     data = JSON3.read(r.body)
-    data[:code] == 0 || @error data
-    @assert data[:code] == 0
+    @debug "response: $(String(r.body))"
     return data
 end
 
 function get_restful(url, headers, query)
     query = StructTypes.constructfrom(Dict, query)
-    query = (k=>string(v) for (k,v) in query)
+    map!(string, values(query))
     @debug "query = $query"
     r = HTTP.get(url, headers; query)
     data = JSON3.read(r.body)
-    data[:code] == 0 || @error data
-    @assert data[:code] == 0
+    @debug "response: $(String(r.body))"
     return data
+end
+
+function upload(url, headers, form)
+    form = StructTypes.constructfrom(Dict, form)
+    map!(values(form)) do v
+        v isa Union{Integer,Enum} ? string(v) : v
+    end
+    form = HTTP.Form(form)
+    @debug "form = $form"
+    r = HTTP.post(url, headers, form)
+    ret = JSON3.read(r.body)
+    @debug "response: $(String(r.body))"
+    ret
 end
 
 
@@ -242,10 +252,20 @@ function try_convert(T, x)
     end
 end
 
+struct RESTfulRequestFailed <: Exception
+    msg::String
+end
+
 function send(adp::ProtocolAdapter, cmd::AbstractCommand)
-    @info "Sending $cmd"
+    # Otherwise we are flooded by them
+    cmd isa AbstractGetMessageCommand || @info "Sending $cmd"
     resp = send(adp, make_command(cmd))
-    try_convert(response_type(cmd), resp)
+    ret = try_convert(response_type(cmd), resp)
+    if response_type(cmd) <: RESTful && hasproperty(ret, :code) && ret.code != 0
+        throw(RESTfulRequestFailed("Request $(typeof(cmd)) failed: $(ret.code) $(ret.msg)"))
+    else
+        ret
+    end
 end
 
 end
