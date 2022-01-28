@@ -275,7 +275,8 @@ function send(adp::ProtocolAdapter, cmd::AbstractCommand)
     resp = send(adp, make_command(cmd))
     ret = try_convert(response_type(cmd), resp)
     if response_type(cmd) <: RESTful && hasproperty(ret, :code) && ret.code != 0
-        throw(RESTfulRequestFailed(cmd, ret.code, ret.msg))
+        msg = hasproperty(ret, :msg) ? ret.msg : ""
+        throw(RESTfulRequestFailed(cmd, ret.code, msg))
     else
         ret
     end
