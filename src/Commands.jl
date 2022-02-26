@@ -16,14 +16,14 @@ subcommand(::AbstractCommand) = nothing
 Base.@kwdef struct RESTful{T}
     code::Int
     msg::String
-    data::T
+    data::Optional{T}
 end
 StructTypes.StructType(::Type{<:RESTful}) = StructTypes.Struct()
 
 Base.@kwdef struct RESTfulErrorMessage{T}
     code::Int
     msg::String
-    data::T
+    data::Optional{T}
 end
 
 StructTypes.@Struct struct VersionResponse
@@ -93,7 +93,7 @@ end
 StructTypes.@Struct struct MessageIdResponse
     code::Int
     msg::String
-    messageId::MessageId
+    messageId::Optional{MessageId}
 end
 
 abstract type AbstractMessagingCommand <: AbstractCommand end

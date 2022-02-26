@@ -33,6 +33,8 @@ end
 
 abstract type ResourceElement <: MessageElement end
 
+StructTypes.omitempties(::Type{<:ResourceElement}) = true
+
 Base.@kwdef struct Image <: ResourceElement
     imageId::Optional{String} = nothing
     url::Optional{String} = nothing
