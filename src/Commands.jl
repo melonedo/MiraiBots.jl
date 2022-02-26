@@ -1,4 +1,5 @@
 abstract type AbstractCommand end
+StructTypes.StructType(::Type{<:AbstractCommand}) = StructTypes.Struct()
 
 module CommandMethods
 @enum CommandMethod begin
@@ -17,6 +18,13 @@ Base.@kwdef struct RESTful{T}
     msg::String
     data::T
 end
+StructTypes.StructType(::Type{<:RESTful}) = StructTypes.Struct()
+
+Base.@kwdef struct RESTfulErrorMessage{T}
+    code::Int
+    msg::String
+    data::T
+end
 
 StructTypes.@Struct struct VersionResponse
     version::VersionNumber
@@ -25,24 +33,29 @@ end
 struct about <: AbstractCommand end
 method(::about) = CommandMethods.GET
 response_type(::about) = RESTful{VersionResponse}
+response_type_compat(::about) = RESTfulErrorMessage{VersionResponse}
 
 struct messageFromId <: AbstractCommand
     id::Int
 end
 method(::messageFromId) = CommandMethods.GET
 response_type(::messageFromId) = RESTful{MessageChain}
+response_type_compat(::messageFromId) = RESTfulErrorMessage{MessageChain}
 
 abstract type AbstractListCommand <: AbstractCommand end
 method(::AbstractListCommand) = CommandMethods.GET
 
 Base.@kwdef struct friendList <: AbstractListCommand end
 response_type(::friendList) = RESTful{Vector{Friend}}
+response_type_compat(::friendList) = Vector{Friend}
 
 Base.@kwdef struct groupList <: AbstractListCommand end
 response_type(::groupList) = RESTful{Vector{Group}}
+response_type_compat(::groupList) = Vector{Group}
 
 Base.@kwdef struct memberList <: AbstractListCommand end
 response_type(::memberList) = RESTful{Vector{Member}}
+response_type_compat(::memberList) = Vector{Member}
 
 module Sexes
 @enum Sex begin
@@ -84,6 +97,8 @@ StructTypes.@Struct struct MessageIdResponse
 end
 
 abstract type AbstractMessagingCommand <: AbstractCommand end
+StructTypes.names(::Type{<:AbstractMessagingCommand}) = ((:quoteId, :quote),)
+StructTypes.omitempties(::Type{<:AbstractMessagingCommand}) = (:target, :qq, :group, :quoteId)
 method(::AbstractMessagingCommand) = CommandMethods.POST
 response_type(::AbstractMessagingCommand) = MessageIdResponse
 
@@ -121,6 +136,7 @@ end
 response_type(::recall) = RESTful{Nothing}
 
 abstract type AbstractFileCommand <: AbstractCommand end
+StructTypes.omitempties(::Type{<:AbstractFileCommand}) = (:path, :target, :qq, :group, :offset, :size)
 method(::AbstractFileCommand) = CommandMethods.POST
 
 StructTypes.@Struct struct DownloadInfo
@@ -396,10 +412,15 @@ Base.@kwdef struct resp_botInvitedJoinGroupRequestEvent <: AbstractRequestComman
     message::String
 end
 
+StructTypes.@Struct struct CompatMessageChainResponse
+    code::Int
+    data::Vector{EventOrMessage}
+end
 
 abstract type AbstractGetMessageCommand <: AbstractCommand end
 method(::AbstractGetMessageCommand) = CommandMethods.GET
 response_type(::AbstractGetMessageCommand) = RESTful{Vector{EventOrMessage}}
+response_type_compat(::AbstractGetMessageCommand) = CompatMessageChainResponse
 
 struct fetchMessage <: AbstractGetMessageCommand
     count::Int
@@ -419,10 +440,4 @@ end
 
 struct countMessage <: AbstractGetMessageCommand end
 response_type(::countMessage) = RESTful{Int}
-
-
-StructTypes.StructType(::Type{<:AbstractCommand}) = StructTypes.Struct()
-StructTypes.StructType(::Type{<:RESTful}) = StructTypes.Struct()
-StructTypes.names(::Type{<:AbstractMessagingCommand}) = ((:quoteId, :quote),)
-StructTypes.omitempties(::Type{<:AbstractMessagingCommand}) = (:target, :qq, :group, :quoteId)
-StructTypes.omitempties(::Type{<:AbstractFileCommand}) = (:path, :target, :qq, :group, :offset, :size)
+response_type_compat(::countMessage) = RESTfulErrorMessage{Int}

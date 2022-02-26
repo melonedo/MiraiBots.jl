@@ -30,11 +30,11 @@ end
 StructTypes.@Struct struct Member
     id::FriendId
     memberName::String
-    specialTitle::String
+    specialTitle::Optional{String}
     permission::Permission
-    joinTimestamp::TimeStamp
-    lastSpeakTimestamp::TimeStamp
-    muteTimeRemaining::DurationSeconds
+    joinTimestamp::Optional{TimeStamp}
+    lastSpeakTimestamp::Optional{TimeStamp}
+    muteTimeRemaining::Optional{DurationSeconds}
     group::Group
 end
 
