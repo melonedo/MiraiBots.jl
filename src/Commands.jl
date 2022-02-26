@@ -25,6 +25,7 @@ Base.@kwdef struct RESTfulErrorMessage{T}
     msg::String
     data::Optional{T}
 end
+StructTypes.StructType(::Type{<:RESTfulErrorMessage}) = StructTypes.Struct()
 
 StructTypes.@Struct struct VersionResponse
     version::VersionNumber

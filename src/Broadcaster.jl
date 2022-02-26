@@ -42,17 +42,35 @@ function broadcast(b::Broadcaster, msg)
     return true
 end
 
-function launch(b::Broadcaster, server, qq, key; kwargs...)
+
+function launch(b::Broadcaster, server, qq, key; check_version = true, kwargs...)
     @sync begin
-        @async MiraiBots.loop(b.adapter, server, qq, key; kwargs...)
-        receive(b.adapter)
+        @async with_catch_backtrace(get_output_channel(b.adapter)) do
+            MiraiBots.loop(b.adapter, server, qq, key; kwargs...)
+        end
+        check_version && @assert check_adapter_compatibility(b)
+        receive_or_throw(b.adapter)
         @info "Adapter is connected to mirai."
+        handle_message(b, ProtocolAdapterConnected())
         for msg in get_output_channel(b.adapter)
-            if msg isa MiraiBots.ExceptionAndBacktrace
-                @error "Error occurred in adapter" exception = (msg.exception, msg.backtrace)
-            else
-                broadcast(b, msg) || close(b.adapter)
-            end
+            handle_message(b, msg)
         end
     end
 end
+
+
+function handle_message(bot, msg)
+    if msg isa MiraiBots.ExceptionAndBacktrace
+        @error "Error occurred in adapter" exception = (msg.exception, msg.backtrace)
+    else
+        broadcast(bot, msg) || close(bot.adapter)
+    end
+end
+
+
+function check_adapter_compatibility(b)
+    resp = send(b.adapter, about())
+    is_adapter_compatibile(b.adapter, resp.data.version)
+end
+
+is_adapter_compatibile(::ProtocolAdapter, version) = version.major == 2

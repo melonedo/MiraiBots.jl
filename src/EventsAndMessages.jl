@@ -349,6 +349,13 @@ struct CommandExecutedEvent <: AbstractEvent
     args::MessageChain
 end
 
+"""
+    ProtocolAdapterConnected
+
+This event is broadcasted by the `Broadcaster` when the protocol adapter is fully launched.
+"""
+struct ProtocolAdapterConnected <: AbstractEvent end
+
 
 const message_types = (; FriendMessage, GroupMessage, OtherClientMessage, StrangerMessage, TempMessage)
 

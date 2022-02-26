@@ -34,3 +34,6 @@ response_type_compat(msg) = response_type(msg)
 function send(adp::HTTPCompatAdapter, cmd::AbstractCommand; session_key_position::SessionKeyPosition = SESSION_KEY_IN_BODY)
     send(adp, cmd, response_type_compat; session_key_position)
 end
+
+
+is_adapter_compatibile(::HTTPCompatAdapter, version) = version.major == 1
