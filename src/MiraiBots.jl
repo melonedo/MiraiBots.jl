@@ -31,6 +31,8 @@ Adapter for different protocols that Mirai HTTP API provides.
 """
 abstract type ProtocolAdapter end
 
+include("Broadcaster.jl")
+
 get_output_channel(adp::ProtocolAdapter) = adp.output_channel
 receive(adp::ProtocolAdapter) = take!(get_output_channel(adp))
 
@@ -67,7 +69,7 @@ struct ExceptionAndBacktrace
     backtrace::Union{Base.return_types(catch_backtrace, ())...}
 end
 
-const OutputChannel = Channel{Union{JSON3.Object, EventOrMessage, ExceptionAndBacktrace}}
+const OutputChannel = Channel{Union{JSON3.Object,EventOrMessage,ExceptionAndBacktrace}}
 const DEFAULT_BUFFER_SIZE = 16
 
 mutable struct WebSocketAdapter <: ProtocolAdapter

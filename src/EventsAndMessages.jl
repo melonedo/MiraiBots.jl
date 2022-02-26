@@ -272,7 +272,7 @@ struct BotGroupPermissionChangeEvent <: MemberStatusChangeEvent
 end
 
 struct MemberMuteEvent <: MemberStatusChangeEvent
-    DurationSeconds::DurationSeconds
+    durationSeconds::DurationSeconds
     member::Member
     operator::SelfOrMember
 end
@@ -305,7 +305,7 @@ end
 abstract type RequestEvent <: AbstractEvent end
 
 struct NewFriendRequestEvent <: RequestEvent
-    eventId::Int
+    eventId::EventId
     fromId::FriendId
     groupId::GroupId
     nick::String
@@ -313,7 +313,7 @@ struct NewFriendRequestEvent <: RequestEvent
 end
 
 struct MemberJoinRequestEvent <: RequestEvent
-    eventId::Int
+    eventId::EventId
     fromId::FriendId # applyer
     groupId::GroupId
     groupName::String
@@ -322,7 +322,7 @@ struct MemberJoinRequestEvent <: RequestEvent
 end
 
 struct BotInvitedJoinGroupRequestEvent <: RequestEvent
-    eventId::Int
+    eventId::EventId
     fromId::FriendId # invitor
     groupId::GroupId
     groupName::String

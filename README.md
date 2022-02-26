@@ -2,7 +2,27 @@
 
 [mirai-api-http](https://github.com/project-mirai/mirai-api-http)的Julia接口，通过[HTTP](https://github.com/JuliaWeb/HTTP.jl)监听，并利用[JSON3](https://github.com/quinnj/JSON3.jl)实现序列化，将消息对应到结构体。
 
-## 用法示例
+## Broadcaster示例
+
+```julia
+using MiraiBots
+broadcaster = MiraiBots.Broadcaster(MiraiBots.HTTPAdapter())
+# 匿名函数
+MiraiBots.register(broadcaster) do bot, msg::MiraiBots.FriendMessage
+    chain = msg.messageChain
+    MiraiBots.send(bot, MiraiBots.sendFriendMessage(target = msg.sender.id, quoteId = chain[1].id, messageChain = chain[2:end])) |> println
+    throw(MiraiBots.ShutDownBroadcaster())
+end
+# 命名函数
+register(f) = MiraiBots.register(f, broadcaster)
+function logger(bot, msg)
+    @info "$(now()): $msg"
+end |> register
+# 启动
+MiraiBots.launch(broadcaster, server, qq, key)
+```
+
+## 不用Broadcaster示例
 
 ```julia
 using MiraiBots

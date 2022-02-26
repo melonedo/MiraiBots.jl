@@ -360,7 +360,7 @@ const REFUSE_AND_BLACKLIST = 2
 end
 
 Base.@kwdef struct resp_newFriendRequestEvent <: AbstractRequestCommand
-    eventId::Int
+    eventId::EventId
     fromId::FriendId
     groupId::GroupId # 0 if not from a group
     operate::Int
@@ -376,7 +376,7 @@ const IGNORE_AND_BLACKLIST = 4
 end
 
 Base.@kwdef struct resp_memberJoinRequestEvent <: AbstractRequestCommand
-    eventId::Int
+    eventId::EventId
     fromId::FriendId
     groupId::GroupId
     operate::Int
@@ -389,7 +389,7 @@ const REFUSE = 1
 end
 
 Base.@kwdef struct resp_botInvitedJoinGroupRequestEvent <: AbstractRequestCommand
-    eventId::Int
+    eventId::EventId
     fromId::FriendId
     groupId::GroupId
     operate::Int
