@@ -24,7 +24,7 @@ function loop(adp::HTTPCompatAdapter, server, qq, authKey; poll_interval = 1, fe
     @assert resp[:code] == 0
 
     put!(adp.output_channel, resp)
-    loop_body(adp, qq, poll_interval, fetch_count, response_type_compat, SESSION_KEY_IN_BODY)
+    loop_body(adp, qq, poll_interval, fetch_count, Commands.response_type_compat, SESSION_KEY_IN_BODY)
 end
 
 

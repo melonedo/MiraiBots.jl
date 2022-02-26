@@ -27,7 +27,7 @@ StructTypes.StructType(::Type{<:RESTful}) = StructTypes.Struct()
 
 Base.@kwdef struct RESTfulErrorMessage{T}
     code::Int
-    msg::String
+    errorMessage::String
     data::Optional{T}
 end
 StructTypes.StructType(::Type{<:RESTfulErrorMessage}) = StructTypes.Struct()
