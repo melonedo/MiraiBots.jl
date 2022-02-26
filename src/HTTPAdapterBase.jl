@@ -1,8 +1,8 @@
-abstract type AbstractHTTPAdapter <: ProtocolAdapter end
+abstract type HTTPAdapterBase <: ProtocolAdapter end
 
 
-function loop_body(adp::AbstractHTTPAdapter, qq, poll_interval, fetch_count, response_type_func, session_key_position)
-    cmd = fetchLatestMessage(fetch_count)
+function loop_body(adp::HTTPAdapterBase, qq, poll_interval, fetch_count, response_type_func, session_key_position)
+    cmd = Commands.fetchLatestMessage(fetch_count)
     while !adp.closed
         data = nothing
         try
@@ -48,7 +48,7 @@ end
     SESSION_KEY_IN_BODY
 end
 
-function send(adp::AbstractHTTPAdapter, cmd::GeneralCommand; session_key_position::SessionKeyPosition)
+function send(adp::HTTPAdapterBase, cmd::GeneralCommand; session_key_position::SessionKeyPosition)
     url = "http://$(adp.server)/$(command_to_path(cmd))"
     if session_key_position == SESSION_KEY_IN_HEADERS
         headers = ["sessionKey" => adp.sessionKey]
@@ -60,18 +60,18 @@ function send(adp::AbstractHTTPAdapter, cmd::GeneralCommand; session_key_positio
     else
         body = cmd.content
     end
-    resp = if cmd.method == CommandMethods.GET
+    resp = if cmd.method == Commands.CommandMethods.GET
         get_restful(url, headers, body)
-    elseif cmd.method == CommandMethods.POST
+    elseif cmd.method == Commands.CommandMethods.POST
         post_restful(url, headers, body)
-    elseif cmd.method == CommandMethods.UPLOAD
+    elseif cmd.method == Commands.CommandMethods.UPLOAD
         upload(url, headers, body)
     end
     resp
 end
 
 
-function Base.close(adp::AbstractHTTPAdapter)
+function Base.close(adp::HTTPAdapterBase)
     adp.closed = true
 end
 

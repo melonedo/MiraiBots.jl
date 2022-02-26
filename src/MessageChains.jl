@@ -1,3 +1,8 @@
+module MessageChains
+using ..StructTypes
+import ..Optional, ..FriendId, ..GroupOrFriendId, ..GroupId, ..TimeStamp, ..DurationSeconds
+import ..MessageId, ..EventId, ..DeviceKind
+
 abstract type MessageElement end
 
 const MessageChain = Vector{MessageElement}
@@ -132,3 +137,10 @@ end
     end
 end
 
+export MessageChain
+
+for n in keys(message_element_types)
+    @eval export $n
+end
+
+end

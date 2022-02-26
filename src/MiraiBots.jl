@@ -14,6 +14,7 @@ const DurationSeconds = Int
 const EventId = Int
 const DeviceKind = Int
 
+
 include("MessageChains.jl")
 include("EventsAndMessages.jl")
 include("Commands.jl")
@@ -37,7 +38,7 @@ include("Broadcaster.jl")
 get_output_channel(adp::ProtocolAdapter) = adp.output_channel
 receive(adp::ProtocolAdapter) = take!(get_output_channel(adp))
 
-function receive_or_throw(adp::ProtocolAdapter, show::Bool=true)
+function receive_or_throw(adp::ProtocolAdapter, show::Bool = true)
     msg = receive(adp)
     if msg isa ExceptionAndBacktrace
         show && @error "Error occurred receiving message" exception = (msg.exception, msg.backtrace)
@@ -56,11 +57,11 @@ struct GeneralCommand{T}
     command::Symbol
     subCommand::Optional{Symbol}
     content::T
-    method::CommandMethod
+    method::Commands.CommandMethod
 end
 
-function make_command(cmd::AbstractCommand)
-    GeneralCommand(command(cmd), subcommand(cmd), cmd, method(cmd))
+function make_command(cmd::Commands.AbstractCommand)
+    GeneralCommand(Commands.command(cmd), Commands.subcommand(cmd), cmd, Commands.method(cmd))
 end
 
 
@@ -81,7 +82,7 @@ function with_catch_backtrace(f, output_channel)
 end
 
 include("WebSocketAdapter.jl")
-include("AbstractHTTPAdapter.jl")
+include("HTTPAdapterBase.jl")
 include("HTTPAdapter.jl")
 include("HTTPCompatAdapter.jl")
 
@@ -95,21 +96,22 @@ function try_convert(T, x)
 end
 
 struct RESTfulRequestFailed <: Exception
-    cmd::AbstractCommand
+    cmd::Commands.AbstractCommand
     code::Int
     msg::String
 end
 
-function send(adp::ProtocolAdapter, cmd::AbstractCommand, response_type_func = response_type; session_key_position::SessionKeyPosition = SESSION_KEY_IN_HEADERS)
+function send(adp::ProtocolAdapter, cmd::Commands.AbstractCommand, response_type_func = Commands.response_type;
+    session_key_position::SessionKeyPosition = SESSION_KEY_IN_HEADERS)
     # Otherwise we are flooded by them
-    cmd isa AbstractGetMessageCommand || @info "Send $cmd"
+    cmd isa Commands.AbstractGetMessageCommand || @info "Send $cmd"
     resp = send(adp, make_command(cmd); session_key_position)
     ret = try_convert(response_type_func(cmd), resp)
-    if response_type_func(cmd) <: RESTful && hasproperty(ret, :code) && ret.code != 0
+    if response_type_func(cmd) <: Commands.RESTful && hasproperty(ret, :code) && ret.code != 0
         msg = hasproperty(ret, :msg) ? ret.msg : ""
         throw(RESTfulRequestFailed(cmd, ret.code, msg))
     else
-        cmd isa AbstractGetMessageCommand || @info "Receive $ret"
+        cmd isa Commands.AbstractGetMessageCommand || @info "Receive $ret"
         ret
     end
 end

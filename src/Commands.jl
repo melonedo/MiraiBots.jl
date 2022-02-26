@@ -1,3 +1,8 @@
+module Commands
+using ..StructTypes, ..Messages, ..Events
+import ..Optional, ..FriendId, ..GroupOrFriendId, ..GroupId, ..TimeStamp, ..DurationSeconds
+import ..MessageId, ..EventId, ..DeviceKind, ..MessageChains.MessageChain, ..EventOrMessage
+
 abstract type AbstractCommand end
 StructTypes.StructType(::Type{<:AbstractCommand}) = StructTypes.Struct()
 
@@ -442,3 +447,5 @@ end
 struct countMessage <: AbstractGetMessageCommand end
 response_type(::countMessage) = RESTful{Int}
 response_type_compat(::countMessage) = RESTfulErrorMessage{Int}
+
+end

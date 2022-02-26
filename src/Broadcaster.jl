@@ -51,7 +51,7 @@ function launch(b::Broadcaster, server, qq, key; check_version = true, kwargs...
         check_version && @assert check_adapter_compatibility(b)
         receive_or_throw(b.adapter)
         @info "Adapter is connected to mirai."
-        handle_message(b, ProtocolAdapterConnected())
+        handle_message(b, Events.ProtocolAdapterConnected())
         for msg in get_output_channel(b.adapter)
             handle_message(b, msg)
         end
@@ -69,7 +69,7 @@ end
 
 
 function check_adapter_compatibility(b)
-    resp = send(b.adapter, about())
+    resp = send(b.adapter, Commands.about())
     is_adapter_compatibile(b.adapter, resp.data.version)
 end
 

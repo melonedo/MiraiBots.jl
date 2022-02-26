@@ -1,4 +1,4 @@
-mutable struct HTTPAdapter <: AbstractHTTPAdapter
+mutable struct HTTPAdapter <: HTTPAdapterBase
     server::String
     output_channel::OutputChannel
     sessionKey::String
@@ -19,5 +19,5 @@ function loop(adp::HTTPAdapter, server, qq, verifyKey; poll_interval = 1, fetch_
     @assert resp[:code] == 0
 
     put!(adp.output_channel, resp)
-    loop_body(adp, qq, poll_interval, fetch_count, response_type, SESSION_KEY_IN_HEADERS)
+    loop_body(adp, qq, poll_interval, fetch_count, Commands.response_type, SESSION_KEY_IN_HEADERS)
 end

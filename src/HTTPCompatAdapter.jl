@@ -3,7 +3,7 @@
 
 An adapter that works for HTTP API v1.x.
 """
-mutable struct HTTPCompatAdapter <: AbstractHTTPAdapter
+mutable struct HTTPCompatAdapter <: HTTPAdapterBase
     server::String
     output_channel::OutputChannel
     sessionKey::String
@@ -28,11 +28,11 @@ function loop(adp::HTTPCompatAdapter, server, qq, authKey; poll_interval = 1, fe
 end
 
 
-response_type_compat(msg) = response_type(msg)
+Commands.response_type_compat(msg) = Commands.response_type(msg)
 
 
-function send(adp::HTTPCompatAdapter, cmd::AbstractCommand; session_key_position::SessionKeyPosition = SESSION_KEY_IN_BODY)
-    send(adp, cmd, response_type_compat; session_key_position)
+function send(adp::HTTPCompatAdapter, cmd::Commands.AbstractCommand; session_key_position::SessionKeyPosition = SESSION_KEY_IN_BODY)
+    send(adp, cmd, Commands.response_type_compat; session_key_position)
 end
 
 
