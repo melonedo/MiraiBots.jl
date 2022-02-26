@@ -62,7 +62,11 @@ WebSocketCommand(syncId, cmd::GeneralCommand) = WebSocketCommand(syncId, cmd.com
 StructTypes.StructType(::Type{WebSocketCommand}) = StructTypes.Struct()
 StructTypes.omitempties(::Type{WebSocketCommand}) = (:subCommand, :content)
 
-const ExceptionAndBacktrace = Pair{Exception, Union{Base.return_types(catch_backtrace, ())...}}
+struct ExceptionAndBacktrace
+    exception::Exception
+    backtrace::Union{Base.return_types(catch_backtrace, ())...}
+end
+
 const OutputChannel = Channel{Union{JSON3.Object, EventOrMessage, ExceptionAndBacktrace}}
 const DEFAULT_BUFFER_SIZE = 16
 
@@ -95,7 +99,7 @@ function loop(adp::WebSocketAdapter, server, qq, verifyKey)
                         data = JSON3.read(bytes)::JSON3.Object
                         dispatch(adp, data[:syncId], data[:data])
                     catch e
-                        put!(adp.output_channel, e => catch_backtrace())
+                        put!(adp.output_channel, ExceptionAndBacktrace(e, catch_backtrace()))
                     end
                 end
                 # to close all pending tasks
@@ -111,7 +115,7 @@ function loop(adp::WebSocketAdapter, server, qq, verifyKey)
                         @debug "Sending command: $str"
                         write(ws, str)
                     catch e
-                        put!(adp.output_channel, e => catch_backtrace())
+                        put!(adp.output_channel, ExceptionAndBacktrace(e, catch_backtrace()))
                     end
                 end
                 @info "WebSocket adapter sender quitted"
@@ -185,7 +189,7 @@ function loop(adp::HTTPAdapter, server, qq, verifyKey; poll_interval = 1, fetch_
             end
         catch e
             if isnothing(data)
-                put!(adp.output_channel, e => catch_backtrace())
+                put!(adp.output_channel, ExceptionAndBacktrace(e, catch_backtrace()))
             else
                 put!(adp.output_channel, dat)
             end
