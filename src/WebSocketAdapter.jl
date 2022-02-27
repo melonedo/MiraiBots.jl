@@ -12,12 +12,13 @@ StructTypes.omitempties(::Type{WebSocketCommand}) = (:subCommand, :content)
 
 mutable struct WebSocketAdapter <: ProtocolAdapter
     reservedSyncId::String
-    input_channel::Channel{WebSocketCommand}
     output_channel::OutputChannel
     output_dict::Dict{String,OutputChannel}
+    ready::Bool
+    ready_cond::Condition
     socket::HTTP.WebSockets.WebSocket
     function WebSocketAdapter(reservedSyncId = "-1")
-        new(reservedSyncId, Channel{WebSocketCommand}(DEFAULT_BUFFER_SIZE), OutputChannel(DEFAULT_BUFFER_SIZE), Dict{String,OutputChannel}())
+        new(reservedSyncId, OutputChannel(DEFAULT_BUFFER_SIZE), Dict{String,OutputChannel}(), false, Condition())
     end
 end
 
@@ -28,35 +29,21 @@ function loop(adp::WebSocketAdapter, server, qq, verifyKey)
         adp.socket = ws
         hello = JSON3.read(readavailable(ws))
         @assert hasproperty(hello, :data)
+        set_ready(adp)
         put!(adp.output_channel, hello.data)
-        @sync begin
-            @async begin
-                while !eof(ws)
-                    with_catch_backtrace(adp.output_channel) do
-                        bytes = readavailable(ws)
-                        isempty(bytes) && eof(ws) && return
-                        @debug "Received data: $(String(copy(bytes)))"
-                        data = JSON3.read(bytes)::JSON3.Object
-                        dispatch(adp, data[:syncId], data[:data])
-                    end
-                end
-                # to close all pending tasks
-                close(adp.output_channel)
-                foreach(close, values(adp.output_dict))
-                @info "WebSocket adapter receiver quitted"
-            end
-            @async begin
-                for cmd in adp.input_channel
-                    with_catch_backtrace(adp.output_channel) do
-                        @debug "Command: $cmd"
-                        str = JSON3.write(cmd)
-                        @debug "Sending command: $str"
-                        write(ws, str)
-                    end
-                end
-                @info "WebSocket adapter sender quitted"
+        while !eof(ws)
+            with_catch_backtrace(adp.output_channel) do
+                bytes = readavailable(ws)
+                isempty(bytes) && eof(ws) && return
+                @debug "Received data: $(String(copy(bytes)))"
+                data = JSON3.read(bytes)::JSON3.Object
+                dispatch(adp, data[:syncId], data[:data])
             end
         end
+        # close all pending tasks
+        close(adp.output_channel)
+        foreach(close, values(adp.output_dict))
+        @info "WebSocket adapter receiver quitted"
         @info "WebSocket adapter quitted"
     end
 end
@@ -71,10 +58,14 @@ function with_entry(f, dict::AbstractDict, key, value)
 end
 
 function send(adp::WebSocketAdapter, cmd::GeneralCommand; session_key_position)
+    wait_ready(adp)
     wscmd = WebSocketCommand(get_sync_id(), cmd)
     ret_ch = OutputChannel(0) do ch
         with_entry(adp.output_dict, wscmd.syncId, ch) do
-            put!(adp.input_channel, wscmd)
+            @debug "Command: $cmd"
+            str = JSON3.write(wscmd)
+            @debug "Sending command: $str"
+            write(adp.socket, str)
             wait(ch)
         end
     end
@@ -93,6 +84,16 @@ function dispatch(adp::WebSocketAdapter, syncId, data)
 end
 
 function Base.close(adp::WebSocketAdapter)
-    close(adp.input_channel)
     close(adp.socket)
+end
+
+function wait_ready(adp::WebSocketAdapter)
+    while !adp.ready
+        wait(adp.ready_cond)
+    end
+end
+
+function set_ready(adp::WebSocketAdapter)
+    adp.ready = true
+    notify(adp.ready_cond)
 end

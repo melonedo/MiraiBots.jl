@@ -48,8 +48,8 @@ function launch(b::Broadcaster, server, qq, key; check_version = true, kwargs...
         @async with_catch_backtrace(get_output_channel(b.adapter)) do
             MiraiBots.loop(b.adapter, server, qq, key; kwargs...)
         end
-        check_version && @assert check_adapter_compatibility(b)
         receive_or_throw(b.adapter)
+        check_version && @assert check_adapter_compatibility(b)
         @info "Adapter is connected to mirai."
         handle_message(b, Events.ProtocolAdapterConnected())
         for msg in get_output_channel(b.adapter)
