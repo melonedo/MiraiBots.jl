@@ -21,7 +21,7 @@ function loop(adp::HTTPCompatAdapter, server, qq, authKey; poll_interval = 1, fe
     adp.sessionKey = resp[:session]
     # Bind
     resp = post_restful("http://$server/verify", (), (; adp.sessionKey, qq))
-    @assert resp[:code] == 0
+    resp[:code] == 0 || throw(AdapterConectionFailed(resp[:code], resp[:msg]))
 
     put!(adp.output_channel, resp)
     loop_body(adp, qq, poll_interval, fetch_count, Commands.response_type_compat, SESSION_KEY_IN_BODY)
@@ -31,8 +31,8 @@ end
 Commands.response_type_compat(msg) = Commands.response_type(msg)
 
 
-function send(adp::HTTPCompatAdapter, cmd::Commands.AbstractCommand; session_key_position::SessionKeyPosition = SESSION_KEY_IN_BODY)
-    send(adp, cmd, Commands.response_type_compat; session_key_position)
+function send(adp::HTTPCompatAdapter, cmd::Commands.AbstractCommand; kwarg...)
+    send(adp, cmd, Commands.response_type_compat; kwarg...)
 end
 
 

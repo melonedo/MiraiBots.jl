@@ -98,6 +98,7 @@ Base.@kwdef struct MessageNode
     messageChain::MessageChain
     messageId::Optional{MessageId}
 end
+StructTypes.StructType(::Type{MessageNode}) = StructTypes.Struct()
 
 Base.@kwdef struct Forward <: MessageElement
     nodeList::Vector{MessageNode}
@@ -117,7 +118,6 @@ const message_element_types = (; Source, Quote, At, AtAll, Face,
     Plain, Image, FlashImage, Voice, Xml, Json, Poke, Dice,
     MusicShare, Forward, File, MiraiCode)
 
-StructTypes.StructType(::Type{MessageNode}) = StructTypes.Struct()
 StructTypes.StructType(::Type{MessageElement}) = StructTypes.AbstractType()
 StructTypes.subtypekey(::Type{MessageElement}) = :type
 StructTypes.subtypes(::Type{MessageElement}) = message_element_types
