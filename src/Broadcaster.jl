@@ -18,12 +18,12 @@ function register(f, b::Broadcaster)
     push!(b.methods, f)
 end
 
-struct ShutDownBroadcaster <: Exception end
+struct ShutdownBroadcaster <: Exception end
 
 """
     broadcast(b::Broadcast, msg)
 
-Call `f(adapter, msg_or_event)` for all of registered functions if `applicable`, return if `ShutDownBroadcaster` is thrown from any of the callback functions.
+Call `f(adapter, msg_or_event)` for all of registered functions if `applicable`, return if `ShutdownBroadcaster` is thrown from any of the callback functions.
 """
 function broadcast(b::Broadcaster, msg)
     args = b.adapter, msg
@@ -32,7 +32,7 @@ function broadcast(b::Broadcaster, msg)
         try
             f(args...)
         catch e
-            if e isa ShutDownBroadcaster
+            if e isa ShutdownBroadcaster
                 return false
             else
                 @error "Error occurred executing broadcaster callbacks" exception = (e, catch_backtrace())

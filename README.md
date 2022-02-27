@@ -35,7 +35,7 @@ MiraiBots.register(broadcaster) do bot, msg::FriendMessage
     send(bot, Commands.sendFriendMessage(
         target = msg.sender.id, quoteId = chain[1].id, 
         messageChain = chain[2:end])) |> println
-    throw(MiraiBots.ShutDownBroadcaster())
+    throw(MiraiBots.ShutdownBroadcaster())
 end
 # 命名函数
 register(f) = MiraiBots.register(f, broadcaster)
