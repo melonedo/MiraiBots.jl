@@ -16,7 +16,7 @@ function loop(adp::HTTPAdapter, server, qq, verifyKey; poll_interval = 1, fetch_
     adp.sessionKey = resp[:session]
     # Bind
     resp = post_restful("http://$server/bind", (), (; adp.sessionKey, qq))
-    @assert resp[:code] == 0
+    resp[:code] == 0 || throw(AdapterConectionFailed(resp[:code], resp[:msg]))
 
     put!(adp.output_channel, resp)
     loop_body(adp, qq, poll_interval, fetch_count, Commands.response_type, SESSION_KEY_IN_HEADERS)

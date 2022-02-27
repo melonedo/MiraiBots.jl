@@ -6,7 +6,7 @@ function loop_body(adp::HTTPAdapterBase, qq, poll_interval, fetch_count, respons
     while !adp.closed
         data = nothing
         try
-            data = send(adp, cmd; session_key_position)::response_type_func(cmd)
+            data = send(adp, cmd; session_key_position, log=false)::response_type_func(cmd)
             for msg in data.data
                 put!(adp.output_channel, msg)
             end
@@ -23,9 +23,6 @@ function loop_body(adp::HTTPAdapterBase, qq, poll_interval, fetch_count, respons
     resp = post_restful("http://$(adp.server)/release", (), (; adp.sessionKey, qq))
     @info "HTTP adapter quitted"
 end
-
-
-command_to_path(cmd::GeneralCommand) = replace(string(cmd.command), '_' => '/')
 
 
 struct EmbedSessionKey{T}
@@ -47,6 +44,9 @@ end
     SESSION_KEY_IN_HEADERS
     SESSION_KEY_IN_BODY
 end
+
+
+command_to_path(cmd::GeneralCommand) = replace(string(cmd.command), '_' => '/')
 
 function send(adp::HTTPAdapterBase, cmd::GeneralCommand; session_key_position::SessionKeyPosition)
     url = "http://$(adp.server)/$(command_to_path(cmd))"
@@ -80,7 +80,7 @@ function post_restful(url, headers, data)
     body = JSON3.write(data)
     json_header = "Content-Type" => "application/json"
     headers = [json_header, headers...]
-    @debug "body=$body"
+    @debug "body = $body"
     r = HTTP.post(url, headers, body)
     data = JSON3.read(r.body)
     @debug "response: $(String(r.body))"

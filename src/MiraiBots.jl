@@ -81,6 +81,11 @@ function with_catch_backtrace(f, output_channel)
     end
 end
 
+struct AdapterConectionFailed <: Exception
+    code::Int
+    reason::String
+end
+
 include("WebSocketAdapter.jl")
 include("HTTPAdapterBase.jl")
 include("HTTPAdapter.jl")
@@ -102,16 +107,16 @@ struct RESTfulRequestFailed <: Exception
 end
 
 function send(adp::ProtocolAdapter, cmd::Commands.AbstractCommand, response_type_func = Commands.response_type;
-    session_key_position::SessionKeyPosition = SESSION_KEY_IN_HEADERS)
-    # Otherwise we are flooded by them
-    cmd isa Commands.AbstractGetMessageCommand || @info "Send $cmd"
+    session_key_position::SessionKeyPosition = SESSION_KEY_IN_HEADERS, log::Bool = true)
+    log && @info "Send $cmd"
     resp = send(adp, make_command(cmd); session_key_position)
     ret = try_convert(response_type_func(cmd), resp)
-    if response_type_func(cmd) <: Commands.RESTful && hasproperty(ret, :code) && ret.code != 0
+    if response_type_func(cmd) <: Union{Commands.RESTful,Commands.RESTfulErrorMessage} &&
+            hasproperty(ret, :code) && ret.code != 0
         msg = hasproperty(ret, :msg) ? ret.msg : ""
         throw(RESTfulRequestFailed(cmd, ret.code, msg))
     else
-        cmd isa Commands.AbstractGetMessageCommand || @info "Receive $ret"
+        log && @info "Receive $ret"
         ret
     end
 end
