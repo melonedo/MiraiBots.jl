@@ -1,6 +1,6 @@
 module MiraiBots
 
-using HTTP, JSON3, StructTypes
+using HTTP, JSON3, StructTypes, Dates
 
 const Optional{T} = Union{T,Nothing}
 
@@ -10,7 +10,7 @@ const GroupId = Int
 const GroupOrFriendId = Union{FriendId,GroupId}
 const MessageId = Int
 const TimeStamp = Int
-const DurationSeconds = Int
+const DurationSeconds = Second
 const EventId = Int
 const DeviceKind = Int
 
