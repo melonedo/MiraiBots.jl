@@ -163,7 +163,6 @@ end
 # If bot is leaving, see BotLeaveEvent
 struct MemberLeaveEventQuit <: OtherMemberLeaveEvent
     member::Member
-    operator::Member
 end
 
 abstract type BotLeaveEvent <: MemberLeaveEvent end
