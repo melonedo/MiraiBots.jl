@@ -32,7 +32,7 @@ Commands.response_type_compat(msg) = Commands.response_type(msg)
 
 
 function send(adp::HTTPCompatAdapter, cmd::Commands.AbstractCommand; kwarg...)
-    send(adp, cmd, Commands.response_type_compat; kwarg..., session_key_position = SESSION_KEY_IN_BODY)
+    send(adp, cmd, Commands.response_type_compat; session_key_position = SESSION_KEY_IN_BODY, kwarg...)
 end
 
 

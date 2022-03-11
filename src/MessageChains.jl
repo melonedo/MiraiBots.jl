@@ -142,7 +142,7 @@ end
     end
 end
 
-export MessageChain
+export MessageChain, MessageElement
 
 for n in keys(message_element_types)
     @eval export $n
