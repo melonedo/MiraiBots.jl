@@ -81,6 +81,11 @@ Base.@kwdef struct Dice <: MessageElement
     value::Int
 end
 
+Base.@kwdef struct MarketFace <: MessageElement
+    id::Int
+    name::String
+end
+
 Base.@kwdef struct MusicShare <: MessageElement
     kind::String
     title::String
@@ -115,8 +120,8 @@ Base.@kwdef struct MiraiCode <: MessageElement
 end
 
 const message_element_types = (; Source, Quote, At, AtAll, Face,
-    Plain, Image, FlashImage, Voice, Xml, Json, Poke, Dice,
-    MusicShare, Forward, File, MiraiCode)
+    Plain, Image, FlashImage, Voice, Xml, Json, App, Poke, Dice,
+    MarketFace, MusicShare, Forward, File, MiraiCode)
 
 StructTypes.StructType(::Type{MessageElement}) = StructTypes.AbstractType()
 StructTypes.subtypekey(::Type{MessageElement}) = :type

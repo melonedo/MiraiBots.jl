@@ -70,7 +70,30 @@ struct OtherClientMessage <: AbstractMessage
     messageChain::MessageChain
 end
 
-const message_types = (; FriendMessage, GroupMessage, OtherClientMessage, StrangerMessage, TempMessage)
+abstract type AbstractSyncMessage end
+
+struct FriendSyncMessage <: AbstractSyncMessage
+    subject::Friend
+    messageChain::MessageChain
+end
+
+struct GroupSyncMessage <: AbstractSyncMessage
+    subject::Group
+    messageChain::MessageChain
+end
+
+struct TempSyncMessage <: AbstractSyncMessage
+    subject::Member
+    messageChain::MessageChain
+end
+
+struct StrangerSyncMessage <: AbstractSyncMessage
+    subject::Friend
+    messageChain::MessageChain
+end
+
+const message_types = (; FriendMessage, GroupMessage, OtherClientMessage, StrangerMessage, TempMessage,
+                         FriendSyncMessage, GroupSyncMessage, TempSyncMessage, StrangerSyncMessage)
 
 for n in keys(message_types)
     @eval export $n

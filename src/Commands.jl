@@ -371,6 +371,43 @@ subcommand(::updateMemberInfo) = :update
 method(::updateMemberInfo) = CommandMethods.POST
 response_type(::updateMemberInfo) = RESTful{Nothing}
 
+abstract type AbstractAnnouncementCommand <: AbstractGroupManagementCommand end
+method(::AbstractAnnouncementCommand) = CommandMethods.POST
+
+"Unique announcement identifyer"
+const AnnouncementId = String
+
+StructTypes.@Struct struct Announcement
+    group::Group
+    content::String
+    senderId::FriendId
+    fid::AnnouncementId
+    allConfirmed::Bool
+    confirmedMembersCount::Int
+    publicationTime::TimeStamp
+end
+
+Base.@kwdef struct anno_list <: AbstractAnnouncementCommand
+    id::GroupId
+    offset:Int = 0
+    size::Int = 10
+end
+response_type(::anno_list) = RESTful{Vector{Announcement}}
+
+Base.@kwdef struct anno_publish <: AbstractAnnouncementCommand
+    target::GroupId
+    content::String
+    pinned::Bool = false
+end
+response_type(::anno_publish) = RESTful{Vector{announcement}}
+
+Base.@kwdef struct anno_delete <: AbstractAnnouncementCommand
+    id::GroupId
+    fid::AnnouncementId
+end
+response_type(::anno_delete) = RESTful{Nothing}
+
+
 abstract type AbstractRequestCommand <: AbstractCommand end
 method(::AbstractRequestCommand) = CommandMethods.POST
 response_type(::AbstractRequestCommand) = RESTful{Nothing}
