@@ -3,6 +3,7 @@ using ..StructTypes, ..Messages, ..Events
 import ..Optional, ..FriendId, ..GroupOrFriendId, ..GroupId, ..TimeStamp, ..DurationSeconds
 import ..MessageId, ..EventId, ..DeviceKind, ..MessageChains.MessageChain, ..EventOrMessage
 
+
 abstract type AbstractCommand end
 StructTypes.StructType(::Type{<:AbstractCommand}) = StructTypes.Struct()
 

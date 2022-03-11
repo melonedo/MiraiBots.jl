@@ -121,4 +121,19 @@ function send(adp::ProtocolAdapter, cmd::Commands.AbstractCommand, response_type
     end
 end
 
+"""
+    @send cmd(args...)
+
+`@send cmd(args...)` is short for `send(bot, MiraiBots.Commands.cmd(args...)`.
+"""
+macro send(cmd)
+    send_imp(cmd)
+end
+
+function send_imp(cmd::Expr)
+    @assert cmd.head == :call && cmd.args[1] isa Symbol
+    esc(Expr(:call, send, :bot,
+        Expr(:call, Expr(:., MiraiBots.Commands, Meta.quot(cmd.args[1])), cmd.args[2:end]...)))
+end
+
 end
