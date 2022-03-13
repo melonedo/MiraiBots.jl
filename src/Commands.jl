@@ -16,7 +16,7 @@ end
 end
 const CommandMethod = CommandMethods.CommandMethod
 
-command(cmd::AbstractCommand) = typeof(cmd).name.name
+command(cmd::AbstractCommand) = nameof(typeof(cmd))
 subcommand(::AbstractCommand) = nothing
 
 Base.@kwdef struct RESTful{T}

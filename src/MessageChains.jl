@@ -130,7 +130,7 @@ StructTypes.subtypes(::Type{MessageElement}) = message_element_types
 # So that `type` field is also included in serialization
 StructTypes.StructType(::Type{<:MessageElement}) = StructTypes.DictType()
 
-function StructTypes.construct(T::Type{<:MessageElement}, x::Dict)
+function StructTypes.construct(T::Type{<:MessageElement}, x::AbstractDict)
     # Force T to be StructTypes.Struct to reuse the infrastructure of StructTypes
     StructTypes.constructfrom(StructTypes.Struct(), T, x)
 end
@@ -138,7 +138,7 @@ end
 @generated function StructTypes.keyvaluepairs(x::MessageElement)
     fields = (:($f = x.$f) for f in fieldnames(x))
     quote
-        pairs((type = $(Meta.quot(x.name.name)), $(fields...)))
+        pairs((type = $(Meta.quot(nameof(x))), $(fields...)))
     end
 end
 
